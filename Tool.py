@@ -157,6 +157,11 @@ def cosasParaHacerElGrafo(sentenceList, dataset):
             relations.append("subclassOf")
             target.append(getEntities(sentence)[1])
 
+            dataset.append((getEntities(sentence)[1], "typeoOf", "Class"))
+            source.append(getEntities(sentence)[1])
+            relations.append("typeOf")
+            target.append("Class")
+
         else: #este es para las normales
             source.append(getEntities(sentence)[0])
             relations.append(getRelation(sentence).replace(" ", ""))
@@ -201,7 +206,7 @@ dataset= list()
 # buildTriples(doc, dataset)
 cosasParaHacerElGrafo(doc, dataset)
 
-# print(dataset)
+print(dataset)
 
 
 
