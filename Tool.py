@@ -113,6 +113,18 @@ def sentences_parser(paragraph):
         candidate_sent.append(nlp(each.lstrip()))
     return candidate_sent
 
+def printGraph(relations, source, target):
+    dataset = pd.DataFrame({'Entidad1': source, 'relacion': relations, 'Entidad2': target})
+
+    plt.figure(figsize=(12,12))
+    G = nx.from_pandas_edgelist(df=dataset, source='Entidad1', target='Entidad2', edge_attr='relacion',
+                                create_using=nx.DiGraph())
+    pos = nx.spring_layout(G, k=5) 
+    nx.draw(G, pos, with_labels=True, node_color='pink', node_size=2000)
+    labels = {e: G.edges[e]['relacion'] for e in G.edges}
+    nx.draw_networkx_edge_labels(G, pos, edge_labels=labels)
+    plt.show() 
+
 def cosasParaHacerElGrafo(sentenceList, dataset):
     entities= list()
 
@@ -138,7 +150,7 @@ def cosasParaHacerElGrafo(sentenceList, dataset):
             relations.append("hasProperty")
             target.append(getEntities(sentence)[1])
 
-        elif (nlp(getRelation(sentence))[0].lemma_ == "ser"): 
+        elif (nlp(getRelation(sentence))[0].lemma_ == "ser"): # este es para subclases
             dataset.append((getEntities(sentence)[0], "subclassOf", getEntities(sentence)[1]))
 
             source.append(getEntities(sentence)[0])
@@ -147,12 +159,21 @@ def cosasParaHacerElGrafo(sentenceList, dataset):
 
         else: #este es para las normales
             source.append(getEntities(sentence)[0])
-            relations.append(getRelation(sentence))
+            relations.append(getRelation(sentence).replace(" ", ""))
             target.append(getEntities(sentence)[1])
 
             triples = (getEntities(sentence)[0], getRelation(sentence).replace(" ", ""), getEntities(sentence)[1])
             dataset.append(triples)
-   
+
+        #este es para encontrar literales
+        for token in getEntities(sentence):
+            if(nlp(token)[0].ent_type_ != ""):
+                dataset.append((token, "typeoOf", "Literal"))
+                source.append(token)
+                relations.append("typeOf")
+                target.append("Literal")
+
+    # estos de abajo son para definir clases
         
     # ocurrencesOfEntity= Counter(entities)
     # for i in ocurrencesOfEntity:
@@ -171,24 +192,16 @@ def cosasParaHacerElGrafo(sentenceList, dataset):
         relations.append("typeOf")
         target.append("Class")
 
+    printGraph(relations, source, target)
 #----------------------  
-doc = "La empresa ofrece travesías en kayak. Las travesías en kayak tienen duración. Los kayakistas contratan travesías en kayak. La empresa informa el arancel. Los kayakistas solicitan arancel. La empresa está ubicada en Buenos Aires. Los kayakistas expertos son kayakistas."
+doc = "Las travesías en kayak son travesías. La empresa ofrece travesías en kayak. Las travesías en kayak tienen duración. Los kayakistas contratan travesías en kayak. La empresa informa el arancel. Los kayakistas solicitan arancel. La empresa está ubicada en Buenos Aires. Los kayakistas expertos son kayakistas."
 doc= sentences_parser(doc)
 
 dataset= list()
 # buildTriples(doc, dataset)
 cosasParaHacerElGrafo(doc, dataset)
 
-print(dataset)
+# print(dataset)
 
 
-# dataset = pd.DataFrame({'Entidad1': source, 'relacion': relations, 'Entidad2': target})
 
-# plt.figure(figsize=(12,12))
-# G = nx.from_pandas_edgelist(df=dataset, source='Entidad1', target='Entidad2', edge_attr='relacion',
-#                             create_using=nx.DiGraph())
-# pos = nx.spring_layout(G, k=5) 
-# nx.draw(G, pos, with_labels=True, node_color='pink', node_size=2000)
-# labels = {e: G.edges[e]['relacion'] for e in G.edges}
-# nx.draw_networkx_edge_labels(G, pos, edge_labels=labels)
-# plt.show() 
