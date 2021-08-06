@@ -2,6 +2,11 @@
 # coding: utf-8
 import spacy
 from spacy.matcher import Matcher
+import networkx as nx
+import pandas as pd
+
+import matplotlib.pyplot as plt
+import matplotlib.image as mpimg 
 
 from collections import Counter
 
@@ -17,9 +22,16 @@ nucleo = [{"DEP": "nsubj"}]
 nucleoMD = [ {"DEP": "nsubj"}, {"DEP":"amod"}] #Caso 2 - "Los kayakistas expertos contratan travesías en kayak."
 nucleoMI = [ {"DEP" : "nsubj"}, {"POS":"ADP"}, {"POS":"NOUN"}] #Caso 3.1 - "Los kayakistas de Córdoba contratan travesías en kayak." 
 
+# verboSimple = [{"POS": "VERB"}]
+# verboCompuesto = [ {"POS": "AUX"}, {"POS": "VERB"}]
+
+
 matcher.add("Nucleo",  [nucleo])
 matcher.add("NucleoMD",  [nucleoMD])
 matcher.add("NucleoMI",  [nucleoMI])
+
+# matcher.add("xd", [verboSimple])
+# matcher.add("xdd", [verboCompuesto])
 
 #---------------------- NEW VERSION ------------
 sentWithOI= list()
@@ -36,7 +48,7 @@ def getVerbPosition(sentence):
     pos= 0
     for token in sentence:
         pos+=1
-        if (token.pos_ == "VERB" or token.lemma_ == "ser"):
+        if (token.text in getRelation(sentence)):
             return pos
 
 def getRelation(sentence):  
@@ -53,7 +65,7 @@ def getObjectsFromSentence(sentence):
 
 
 def get_ent(sentence):
-    return list(ent.text for ent in sentence.ents)
+    return [ent.text for ent in sentence.ents]
 
 def getEntities(sentence):
     pos_verb= getVerbPosition(sentence)
@@ -90,20 +102,36 @@ def sentences_parser(paragraph):
     return candidate_sent
 
 #----------------------  
-doc = "La empresa se llama Dublin. La empresa es conocida por sus travesías en kayak. Las travesías en kayak tienen duración."
+doc = "La empresa ofrece travesías en kayak. Las travesías en kayak tienen duración. Los kayakistas contratan travesías en kayak. La empresa informa el arancel. Los kayakistas solicitan arancel. La empresa se localiza en Buenos Aires."
 doc= sentences_parser(doc)
 
 entities= list()
 
+relations = []
+source = []
+target = []
 
 dataset= list()
 for sentence in doc:    
     #sujeto-predicado-objeto
     triplestore = (getEntities(sentence)[0], getRelation(sentence), getEntities(sentence)[1])
 
+    #------ sacar
+    source.append(getEntities(sentence)[0])
+    relations.append(getRelation(sentence))
+    target.append(getEntities(sentence)[1])
+    #------ sacar
+
     if (nlp(getRelation(sentence))[0].lemma_ == "tener"):
         dataset.append((getEntities(sentence)[0], "hasProperty", getEntities(sentence)[1]))
+        dataset.append((getEntities(sentence)[1], "propertyOf", getEntities(sentence)[0]))
 
+        #------ sacar
+        source.append(getEntities(sentence)[0])
+        relations.append("hasProperty")
+        target.append(getEntities(sentence)[1])
+        #------ sacar
+        
     dataset.append(triplestore)
 
     entities.append(getEntities(sentence)[0])
@@ -111,9 +139,25 @@ for sentence in doc:
     
 ocurrencesOfEntity= Counter(entities)
 for i in ocurrencesOfEntity:
-    if ocurrencesOfEntity[i] >= 2:
-        triplestore= (i, "typeoOf", "class")
-        dataset.append(triplestore)
+    if ocurrencesOfEntity[i] >= 3:
+        dataset.append((i, "typeoOf", "Class"))
+        #------ sacar
+        source.append(i)
+        relations.append("typeOf")
+        target.append("Class")
+        #------ sacar
 
 print(dataset)
+
+
+dataset = pd.DataFrame({'Entidad1': source, 'relacion': relations, 'Entidad2': target})
+
+plt.figure(figsize=(12,12))
+G = nx.from_pandas_edgelist(df=dataset, source='Entidad1', target='Entidad2', edge_attr='relacion',
+                            create_using=nx.DiGraph())
+pos = nx.spring_layout(G, k=5) 
+nx.draw(G, pos, with_labels=True, node_color='pink', node_size=2000)
+labels = {e: G.edges[e]['relacion'] for e in G.edges}
+nx.draw_networkx_edge_labels(G, pos, edge_labels=labels)
+plt.show() 
                
