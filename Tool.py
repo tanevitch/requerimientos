@@ -8,20 +8,20 @@ import matplotlib.image as mpimg
 
 from collections import Counter
 
-nlp = spacy.load("es_core_news_md")
+NLP = spacy.load("es_core_news_md")
 
-# ruler = nlp.add_pipe("entity_ruler")
+# ruler = NLP.add_pipe("entity_ruler")
 # ruler.add_patterns([{'label': 'ORG', 'pattern': 'Hoy duermo afuera'}])
 # ruler.add_patterns([{'label': 'ORG', 'pattern': 'travesías en kayak'}])
 
 
-matcher = Matcher(nlp.vocab)
-nucleo = [{"DEP": "nsubj"}]
-nucleoMD = [
+MATCHER = Matcher(NLP.vocab)
+NUCLEO = [{"DEP": "nsubj"}]
+NUCLEO_MD = [
     {"DEP": "nsubj"},
     {"DEP": "amod"},
 ]  # Caso 2 - "Los kayakistas expertos contratan travesías en kayak."
-nucleoMI = [
+NUCLEO_MI = [
     {"DEP": "nsubj"},
     {"POS": "ADP"},
     {"POS": "NOUN"},
@@ -31,12 +31,12 @@ nucleoMI = [
 # verboCompuesto = [ {"POS": "AUX"}, {"POS": "VERB"}]
 
 
-matcher.add("Nucleo", [nucleo])
-matcher.add("NucleoMD", [nucleoMD])
-matcher.add("NucleoMI", [nucleoMI])
+MATCHER.add("Nucleo", [NUCLEO])
+MATCHER.add("NucleoMD", [NUCLEO_MD])
+MATCHER.add("NucleoMI", [NUCLEO_MI])
 
-# matcher.add("xd", [verboSimple])
-# matcher.add("xdd", [verboCompuesto])
+# MATCHER.add("xd", [verboSimple])
+# MATCHER.add("xdd", [verboCompuesto])
 
 # ---------------------- NEW VERSION ------------
 sentWithOI = list()
@@ -94,10 +94,8 @@ def getEntityFromSubject(sentence, pair, pos_verb):
     if len(recognizedEntities) >= 1:  # if there are recognized entities
         pair.append(recognizedEntities[0])
     else:
-        matches = matcher(sentence[0:pos_verb])
-        for match_id, start, end in matches:
-            span = sentence[start:end]
-        pair.append(span.text)  # add the lastest
+        _, start, end = MATCHER(sentence[0:pos_verb])[-1]
+        pair.append(sentence[start:end].text)  # add the last span
 
 
 def getEntityFromPredicate(sentence, pair, pos_verb):
@@ -141,7 +139,7 @@ def sentences_parser(paragraph):
     candidate_sent = list()
     paragraph = filter(None, paragraph.split("."))
     for each in paragraph:
-        candidate_sent.append(nlp(each.lstrip()))
+        candidate_sent.append(NLP(each.lstrip()))
     return candidate_sent
 
 
@@ -180,7 +178,7 @@ def cosasParaHacerElGrafo(sentenceList, dataset):
         entities.append(getEntities(sentence)[1])
 
         # este es para setear a mano la relacion de las que son propiedades
-        if nlp(getRelation(sentence))[0].lemma_ == "tener":
+        if NLP(getRelation(sentence))[0].lemma_ == "tener":
             dataset.append(
                 (
                     getEntities(sentence)[0],
@@ -203,7 +201,7 @@ def cosasParaHacerElGrafo(sentenceList, dataset):
             target.append(getEntities(sentence)[1])
 
         elif (
-            nlp(getRelation(sentence))[0].lemma_ == "ser"
+            NLP(getRelation(sentence))[0].lemma_ == "ser"
         ):  # este es para subclases
             dataset.append(
                 (
@@ -236,7 +234,7 @@ def cosasParaHacerElGrafo(sentenceList, dataset):
 
         # este es para encontrar literales
         for token in getEntities(sentence):
-            if nlp(token)[0].ent_type_ != "":
+            if NLP(token)[0].ent_type_ != "":
                 dataset.append((token, "typeoOf", "Literal"))
                 source.append(token)
                 relations.append("typeOf")
