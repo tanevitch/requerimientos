@@ -47,14 +47,19 @@ def categorizeSentence(sentence):
 def getVerbPosition(sentence):
     pos= 0
     for token in sentence:
-        pos+=1
-        if (token.text in getRelation(sentence)):
+        if (" " in getRelation(sentence)): # este es el caso para cuando son dos palabras
+            if (token.text == getRelation(sentence).split(" ")[0]): 
+                return pos-1
+        elif (token.text == getRelation(sentence)):
             return pos
+        pos+=1
 
 def getRelation(sentence):  
     for token in sentence:
         if (token.pos_ =="AUX" and token.nbor().pos_ == "VERB"):
-            return token.text + " "+ token.nbor().text
+            return token.text + " " + token.nbor().text.capitalize()
+        elif (token.dep_ == "ROOT" and token.nbor().pos_ == "ADP"):
+            return token.text + " " + token.nbor().text.capitalize()
         elif (token.pos_ == "VERB" or token.lemma_ == "ser"):
             return token.text
 
@@ -63,17 +68,12 @@ def getObjectsFromSentence(sentence):
         if token.dep_ =="obj":
             return token.text
 
-
-def get_ent(sentence):
+def getSentenceEnts(sentence):
     return [ent.text for ent in sentence.ents]
 
-def getEntities(sentence):
-    pos_verb= getVerbPosition(sentence)
-
-    pair=list() #tiene que tener 2 elementos
-
+def getEntityFromSubject(sentence, pair, pos_verb):
     #sujeto | entidades reconocidas - matcher
-    recognizedEntities= get_ent(sentence[0:pos_verb])
+    recognizedEntities= getSentenceEnts(sentence[0:pos_verb])
     if len(recognizedEntities) >= 1: #if there are recognized entities
         pair.append(recognizedEntities[0])   
     else:
@@ -82,18 +82,30 @@ def getEntities(sentence):
             span = sentence[start:end]  
         pair.append(span.text) # add the lastest
 
-    #predicado | entidades reconocidas - objeto | casos extras
-    recognizedEntities= get_ent(sentence[pos_verb:len(sentence)])
+def getEntityFromPredicate(sentence, pair, pos_verb):
+     #predicado | entidades reconocidas - objeto - casos extras
+    recognizedEntities= getSentenceEnts(sentence[pos_verb:len(sentence)])
     if len(recognizedEntities) >= 1: 
         pair.append(recognizedEntities[0])
     elif getObjectsFromSentence(sentence) != None:
         pair.append(getObjectsFromSentence(sentence))
     else:
         pair.append([token.text for token in sentence if token.dep_ =="ROOT" and token.pos_ =="NOUN"][0])
-    
+
+def getEntities(sentence):
+    pos_verb= getVerbPosition(sentence)
+    pair=list() #tiene que tener 2 elementos
+    # print(sentence[0:pos_verb], " xd", sentence[pos_verb:len(sentence)])
+    getEntityFromSubject(sentence, pair, pos_verb)
+    getEntityFromPredicate(sentence, pair, pos_verb)      
     return pair    
         
-           
+def buildTriples(sentenceList, dataset):
+    for sentence in sentenceList:    
+        #sujeto-predicado-objeto
+        triples = (getEntities(sentence)[0], getRelation(sentence), getEntities(sentence)[1])
+        dataset.append(triples)
+
 def sentences_parser(paragraph):
     candidate_sent= list()
     paragraph= filter(None,paragraph.split("."))
@@ -101,63 +113,82 @@ def sentences_parser(paragraph):
         candidate_sent.append(nlp(each.lstrip()))
     return candidate_sent
 
-#----------------------  
-doc = "La empresa ofrece travesías en kayak. Las travesías en kayak tienen duración. Los kayakistas contratan travesías en kayak. La empresa informa el arancel. Los kayakistas solicitan arancel. La empresa se localiza en Buenos Aires."
-doc= sentences_parser(doc)
+def cosasParaHacerElGrafo(sentenceList, dataset):
+    entities= list()
 
-entities= list()
+    entidadesQueTienenPropiedades= list()
 
-relations = []
-source = []
-target = []
+    relations = []
+    source = []
+    target = []
+    for sentence in sentenceList:    
 
-dataset= list()
-for sentence in doc:    
-    #sujeto-predicado-objeto
-    triplestore = (getEntities(sentence)[0], getRelation(sentence), getEntities(sentence)[1])
+        #estos son para el Counter de las entidades
+        entities.append(getEntities(sentence)[0])
+        entities.append(getEntities(sentence)[1])
 
-    #------ sacar
-    source.append(getEntities(sentence)[0])
-    relations.append(getRelation(sentence))
-    target.append(getEntities(sentence)[1])
-    #------ sacar
+        #este es para setear a mano la relacion de las que son propiedades
+        if (nlp(getRelation(sentence))[0].lemma_ == "tener"):
+            dataset.append((getEntities(sentence)[0], "hasProperty", getEntities(sentence)[1]))
+            dataset.append((getEntities(sentence)[1], "propertyOf", getEntities(sentence)[0]))
 
-    if (nlp(getRelation(sentence))[0].lemma_ == "tener"):
-        dataset.append((getEntities(sentence)[0], "hasProperty", getEntities(sentence)[1]))
-        dataset.append((getEntities(sentence)[1], "propertyOf", getEntities(sentence)[0]))
+            entidadesQueTienenPropiedades.append(getEntities(sentence)[0])
 
-        #------ sacar
-        source.append(getEntities(sentence)[0])
-        relations.append("hasProperty")
-        target.append(getEntities(sentence)[1])
-        #------ sacar
+            source.append(getEntities(sentence)[0])
+            relations.append("hasProperty")
+            target.append(getEntities(sentence)[1])
+
+        elif (nlp(getRelation(sentence))[0].lemma_ == "ser"): 
+            dataset.append((getEntities(sentence)[0], "subclassOf", getEntities(sentence)[1]))
+
+            source.append(getEntities(sentence)[0])
+            relations.append("subclassOf")
+            target.append(getEntities(sentence)[1])
+
+        else: #este es para las normales
+            source.append(getEntities(sentence)[0])
+            relations.append(getRelation(sentence))
+            target.append(getEntities(sentence)[1])
+
+            triples = (getEntities(sentence)[0], getRelation(sentence).replace(" ", ""), getEntities(sentence)[1])
+            dataset.append(triples)
+   
         
-    dataset.append(triplestore)
+    # ocurrencesOfEntity= Counter(entities)
+    # for i in ocurrencesOfEntity:
+    #     if ocurrencesOfEntity[i] >= 3:
+    #         dataset.append((i, "typeoOf", "Class"))
+    #         #------ sacar
+    #         source.append(i)
+    #         relations.append("typeOf")
+    #         target.append("Class")
+    #         #------ sacar
 
-    entities.append(getEntities(sentence)[0])
-    entities.append(getEntities(sentence)[1])
-    
-ocurrencesOfEntity= Counter(entities)
-for i in ocurrencesOfEntity:
-    if ocurrencesOfEntity[i] >= 3:
+    ocurrencesOfEntity= Counter(entidadesQueTienenPropiedades)
+    for i in ocurrencesOfEntity:
         dataset.append((i, "typeoOf", "Class"))
-        #------ sacar
         source.append(i)
         relations.append("typeOf")
         target.append("Class")
-        #------ sacar
+
+#----------------------  
+doc = "La empresa ofrece travesías en kayak. Las travesías en kayak tienen duración. Los kayakistas contratan travesías en kayak. La empresa informa el arancel. Los kayakistas solicitan arancel. La empresa está ubicada en Buenos Aires. Los kayakistas expertos son kayakistas."
+doc= sentences_parser(doc)
+
+dataset= list()
+# buildTriples(doc, dataset)
+cosasParaHacerElGrafo(doc, dataset)
 
 print(dataset)
 
 
-dataset = pd.DataFrame({'Entidad1': source, 'relacion': relations, 'Entidad2': target})
+# dataset = pd.DataFrame({'Entidad1': source, 'relacion': relations, 'Entidad2': target})
 
-plt.figure(figsize=(12,12))
-G = nx.from_pandas_edgelist(df=dataset, source='Entidad1', target='Entidad2', edge_attr='relacion',
-                            create_using=nx.DiGraph())
-pos = nx.spring_layout(G, k=5) 
-nx.draw(G, pos, with_labels=True, node_color='pink', node_size=2000)
-labels = {e: G.edges[e]['relacion'] for e in G.edges}
-nx.draw_networkx_edge_labels(G, pos, edge_labels=labels)
-plt.show() 
-               
+# plt.figure(figsize=(12,12))
+# G = nx.from_pandas_edgelist(df=dataset, source='Entidad1', target='Entidad2', edge_attr='relacion',
+#                             create_using=nx.DiGraph())
+# pos = nx.spring_layout(G, k=5) 
+# nx.draw(G, pos, with_labels=True, node_color='pink', node_size=2000)
+# labels = {e: G.edges[e]['relacion'] for e in G.edges}
+# nx.draw_networkx_edge_labels(G, pos, edge_labels=labels)
+# plt.show() 
