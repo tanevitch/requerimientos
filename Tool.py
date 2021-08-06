@@ -44,13 +44,11 @@ sentWithoutOI = list()
 
 
 def categorizeSentence(sentence):
-    if (
-        len(getObjectsFromSentence(sentence)) == 1
-    ):  # one object means that it has only do
+    if len(getObjectsFromSentence(sentence)) == 1:
+        # one object means that it has only do
         sentWithoutOI.append(sentence)
-    elif (
-        len(getObjectsFromSentence(sentence)) == 2
-    ):  # two objects mean that it has io and do
+    elif len(getObjectsFromSentence(sentence)) == 2:
+        # two objects mean that it has io and do
         sentWithOI.append(sentence)
 
 
@@ -58,12 +56,12 @@ def categorizeSentence(sentence):
 def getVerbPosition(sentence):
     pos = 0
     for token in sentence:
-        if " " in getRelation(
-            sentence
-        ):  # este es el caso para cuando son dos palabras
-            if token.text == getRelation(sentence).split(" ")[0]:
+        relation = getRelation(sentence)
+        if relation is not None and " " in relation:
+            # este es el caso para cuando son dos palabras
+            if token.text == relation.split(" ")[0]:
                 return pos - 1
-        elif token.text == getRelation(sentence):
+        elif token.text == relation:
             return pos
         pos += 1
 
@@ -76,12 +74,14 @@ def getRelation(sentence):
             return token.text + " " + token.nbor().text.capitalize()
         elif token.pos_ == "VERB" or token.lemma_ == "ser":
             return token.text
+    return None
 
 
 def getObjectsFromSentence(sentence):
     for token in sentence:
         if token.dep_ == "obj":
             return token.text
+    return ""
 
 
 def getSentenceEnts(sentence):
@@ -103,7 +103,7 @@ def getEntityFromPredicate(sentence, pair, pos_verb):
     recognizedEntities = getSentenceEnts(sentence[pos_verb : len(sentence)])
     if len(recognizedEntities) >= 1:
         pair.append(recognizedEntities[0])
-    elif getObjectsFromSentence(sentence) != None:
+    elif getObjectsFromSentence(sentence) != "":
         pair.append(getObjectsFromSentence(sentence))
     else:
         pair.append(
