@@ -4,7 +4,6 @@ import networkx as nx
 import pandas as pd
 
 import matplotlib.pyplot as plt
-import matplotlib.image as mpimg
 
 from collections import Counter
 
@@ -160,7 +159,8 @@ def printGraph(relations, source, target):
     nx.draw(G, pos, with_labels=True, node_color="pink", node_size=2000)
     labels = {e: G.edges[e]["relacion"] for e in G.edges}
     nx.draw_networkx_edge_labels(G, pos, edge_labels=labels)
-    plt.show()
+
+    plt.savefig("data/output.png", bbox_inches="tight")
 
 
 def cosasParaHacerElGrafo(sentenceList, dataset):
