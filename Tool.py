@@ -173,12 +173,16 @@ def cosasParaHacerElGrafo(sentenceList, dataset):
     target = []
     for sentence in sentenceList:
 
+        relation = getRelation(sentence)
+        if relation is None:
+            continue
+
         # estos son para el Counter de las entidades
         entities.append(getEntities(sentence)[0])
         entities.append(getEntities(sentence)[1])
 
         # este es para setear a mano la relacion de las que son propiedades
-        if NLP(getRelation(sentence))[0].lemma_ == "tener":
+        if NLP(relation)[0].lemma_ == "tener":
             dataset.append(
                 (
                     getEntities(sentence)[0],
@@ -200,9 +204,8 @@ def cosasParaHacerElGrafo(sentenceList, dataset):
             relations.append("hasProperty")
             target.append(getEntities(sentence)[1])
 
-        elif (
-            NLP(getRelation(sentence))[0].lemma_ == "ser"
-        ):  # este es para subclases
+        # este es para subclases
+        elif NLP(relation)[0].lemma_ == "ser":
             dataset.append(
                 (
                     getEntities(sentence)[0],
@@ -222,12 +225,12 @@ def cosasParaHacerElGrafo(sentenceList, dataset):
 
         else:  # este es para las normales
             source.append(getEntities(sentence)[0])
-            relations.append(getRelation(sentence).replace(" ", ""))
+            relations.append(relation.replace(" ", ""))
             target.append(getEntities(sentence)[1])
 
             triples = (
                 getEntities(sentence)[0],
-                getRelation(sentence).replace(" ", ""),
+                relation.replace(" ", ""),
                 getEntities(sentence)[1],
             )
             dataset.append(triples)
