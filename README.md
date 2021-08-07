@@ -15,7 +15,7 @@ python -m venv .venv && source .venv/bin/activate
 python -m pip install --upgrade pip
 
 # Get dependencies
-pip install -Ur requirements.txt
+pip install -r requirements.txt
 ```
 
 ### TO-DO:
