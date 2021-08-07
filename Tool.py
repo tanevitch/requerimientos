@@ -121,11 +121,16 @@ def printGraph(dataset):
 
     dataset = pd.DataFrame({'Entidad1': source, 'relacion': relation, 'Entidad2':target})
 
+
     plt.figure(figsize=(12,12))
     G = nx.from_pandas_edgelist(df=dataset, source='Entidad1', target='Entidad2', edge_attr='relacion',
                                 create_using=nx.DiGraph())
+
+    val_map = {'Class': 0.0}
+    values = [val_map.get(node, 0.25) for node in G.nodes()]
+
     pos = nx.spring_layout(G, k=5) 
-    nx.draw(G, pos, with_labels=True, node_color='pink', node_size=2000)
+    nx.draw(G, pos, with_labels=True, node_color=values, node_size=2000)
     labels = {e: G.edges[e]['relacion'] for e in G.edges}
     nx.draw_networkx_edge_labels(G, pos, edge_labels=labels)
     plt.show() 
