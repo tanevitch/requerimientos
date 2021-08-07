@@ -160,28 +160,24 @@ def printGraph(dataset):
         edge_attr="relacion",
         create_using=nx.DiGraph(),
     )
-    pos = nx.spring_layout(G, k=5)
-    nx.draw(G, pos, with_labels=True, node_color="pink", node_size=2000)
-    labels = {e: G.edges[e]["relacion"] for e in G.edges}
 
+    val_map = {"Class": 0.0}
+    values = [val_map.get(node, 0.25) for node in G.nodes()]
+
+    pos = nx.spring_layout(G, k=5)
+    nx.draw(G, pos, with_labels=True, node_color=values, node_size=2000)
+    labels = {e: G.edges[e]["relacion"] for e in G.edges}
     nx.draw_networkx_edge_labels(G, pos, edge_labels=labels)
 
     plt.savefig("data/output.png", bbox_inches="tight")
 
 
 def cosasParaHacerElGrafo(sentenceList, dataset):
-    # entities = list()
-    entidades_con_propiedades = list()
-
     for sentence in sentenceList:
 
         relation = getRelation(sentence)
         if relation is None:
             continue
-
-        # estos son para el Counter de las entidades
-        # entities.append(getEntities(sentence)[0])
-        # entities.append(getEntities(sentence)[1])
 
         # este es para setear a mano la relacion de las que son propiedades
         if NLP(relation)[0].lemma_ == "tener":
@@ -200,7 +196,8 @@ def cosasParaHacerElGrafo(sentenceList, dataset):
                 )
             )
 
-            entidades_con_propiedades.append(getEntities(sentence)[0])
+            # si tiene propiedad, entonces va a ser clase
+            dataset.append((getEntities(sentence)[0], "typeOf", "Class"))
 
         elif NLP(relation)[0].lemma_ == "ser":  # este es para subclases
             dataset.append(
@@ -219,29 +216,6 @@ def cosasParaHacerElGrafo(sentenceList, dataset):
                 getEntities(sentence)[1],
             )
             dataset.append(triples)
-
-            # este es para encontrar literales
-            for token in getEntities(sentence):
-                if (
-                    NLP(token)[0].ent_type_ != ""
-                    and token not in entidades_con_propiedades
-                ):
-                    dataset.append((token, "typeOf", "Literal"))
-
-    # estos de abajo son para definir clases
-
-    # ocurrencesOfEntity= Counter(entities)
-    # for i in ocurrencesOfEntity:
-    #     if ocurrencesOfEntity[i] >= 3:
-    #         dataset.append((i, "typeOf", "Class"))
-    #         #------ sacar
-    #         source.append(i)
-    #         relations.append("typeOf")
-    #         target.append("Class")
-    #         #------ sacar
-
-    for i in Counter(entidades_con_propiedades):
-        dataset.append((i, "typeOf", "Class"))
 
     printGraph(dataset)
 
