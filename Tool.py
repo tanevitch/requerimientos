@@ -226,14 +226,14 @@ def cosasParaHacerElGrafo(sentenceList, dataset):
                     NLP(token)[0].ent_type_ != ""
                     and token not in entidades_con_propiedades
                 ):
-                    dataset.append((token, "typeoOf", "Literal"))
+                    dataset.append((token, "typeOf", "Literal"))
 
     # estos de abajo son para definir clases
 
     # ocurrencesOfEntity= Counter(entities)
     # for i in ocurrencesOfEntity:
     #     if ocurrencesOfEntity[i] >= 3:
-    #         dataset.append((i, "typeoOf", "Class"))
+    #         dataset.append((i, "typeOf", "Class"))
     #         #------ sacar
     #         source.append(i)
     #         relations.append("typeOf")
@@ -241,13 +241,13 @@ def cosasParaHacerElGrafo(sentenceList, dataset):
     #         #------ sacar
 
     for i in Counter(entidades_con_propiedades):
-        dataset.append((i, "typeoOf", "Class"))
+        dataset.append((i, "typeOf", "Class"))
 
     printGraph(dataset)
 
 
 # ----------------------
-doc = "Los kayakistas inexpertos son tipos de kayakistas. Las travesías en kayak son travesías. La empresa ofrece travesías en kayak. Las travesías en kayak tienen duración. Los kayakistas contratan travesías en kayak. La empresa informa el arancel. Los kayakistas solicitan arancel. La empresa está ubicada en Buenos Aires. Los kayakistas expertos son kayakistas."
+doc = "Los kayakistas inexpertos son kayakistas. Las travesías en kayak son travesías. La empresa ofrece travesías en kayak. Las travesías en kayak tienen duración. Los kayakistas contratan travesías en kayak. La empresa informa el arancel. Los kayakistas solicitan arancel. La empresa está ubicada en Buenos Aires. Los kayakistas expertos son kayakistas."
 doc = sentences_parser(doc)
 
 dataset = list()
