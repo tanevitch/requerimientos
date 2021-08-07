@@ -1,11 +1,9 @@
-import spacy
-from spacy.matcher import Matcher
+import matplotlib.pyplot as plt
+from itertools import chain
 import networkx as nx
 import pandas as pd
-
-import matplotlib.pyplot as plt
-
-from collections import Counter
+import spacy
+from spacy.matcher import Matcher
 
 NLP = spacy.load("es_core_news_md")
 
@@ -15,24 +13,31 @@ NLP = spacy.load("es_core_news_md")
 
 
 MATCHER = Matcher(NLP.vocab)
-NUCLEO = [{"DEP": "nsubj"}]
-NUCLEO_MD = [
-    {"DEP": "nsubj"},
-    {"DEP": "amod"},
-]  # Caso 2 - "Los kayakistas expertos contratan travesías en kayak."
-NUCLEO_MI = [
-    {"DEP": "nsubj"},
-    {"POS": "ADP"},
-    {"POS": "NOUN"},
-]  # Caso 3.1 - "Los kayakistas de Córdoba contratan travesías en kayak."
 
-# verboSimple = [{"POS": "VERB"}]
-# verboCompuesto = [ {"POS": "AUX"}, {"POS": "VERB"}]
+MATCHER.add("Nucleo", [[{"DEP": "nsubj"}]])
 
+# Caso 2 - "Los kayakistas expertos contratan travesías en kayak."
+MATCHER.add(
+    "NucleoMD",
+    [
+        [
+            {"DEP": "nsubj"},
+            {"DEP": "amod"},
+        ]
+    ],
+)
 
-MATCHER.add("Nucleo", [NUCLEO])
-MATCHER.add("NucleoMD", [NUCLEO_MD])
-MATCHER.add("NucleoMI", [NUCLEO_MI])
+# Caso 3.1 - "Los kayakistas de Córdoba contratan travesías en kayak."
+MATCHER.add(
+    "NucleoMI",
+    [
+        [
+            {"DEP": "nsubj"},
+            {"POS": "ADP"},
+            {"POS": "NOUN"},
+        ]
+    ],
+)
 
 # MATCHER.add("xd", [verboSimple])
 # MATCHER.add("xdd", [verboCompuesto])
@@ -67,10 +72,11 @@ def getVerbPosition(sentence):
 
 def getRelation(sentence):
     for token in sentence:
-        if token.pos_ == "AUX" and token.nbor().pos_ == "VERB":
+        if (token.pos_ == "AUX" and token.nbor().pos_ == "VERB") or (
+            token.dep_ == "ROOT" and token.nbor().pos_ == "ADP"
+        ):
             return token.text + " " + token.nbor().text.capitalize()
-        elif token.dep_ == "ROOT" and token.nbor().pos_ == "ADP":
-            return token.text + " " + token.nbor().text.capitalize()
+
         elif token.pos_ == "VERB" or token.lemma_ == "ser":
             return token.text
     return None
@@ -123,8 +129,8 @@ def getEntities(sentence):
     return pair
 
 
-def buildTriples(sentenceList, dataset):
-    for sentence in sentenceList:
+def buildTriples(sentence_list, dataset):
+    for sentence in sentence_list:
         # sujeto-predicado-objeto
         triples = (
             getEntities(sentence)[0],
@@ -172,60 +178,67 @@ def printGraph(dataset):
     plt.savefig("data/output.png", bbox_inches="tight")
 
 
-def cosasParaHacerElGrafo(sentenceList, dataset):
-    for sentence in sentenceList:
+# if there is propriety, there is property
+def does_it_imply_propriety(relation):
+    return NLP(relation)[0].lemma_ == "tener"
+
+
+def does_it_imply_subclass(relation):
+    return NLP(relation)[0].lemma_ == "ser"
+
+
+def get_all_entities(sentence_list):
+    return set(chain.from_iterable(map(getEntities, sentence_list)))
+
+
+def generate_nodes(sentence_list):
+    result = []
+    for sentence in sentence_list:
 
         relation = getRelation(sentence)
         if relation is None:
             continue
 
+        entities = getEntities(sentence)
+
         # este es para setear a mano la relacion de las que son propiedades
-        if NLP(relation)[0].lemma_ == "tener":
-            dataset.append(
-                (
-                    getEntities(sentence)[0],
-                    "hasProperty",
-                    getEntities(sentence)[1],
-                )
-            )
-            dataset.append(
-                (
-                    getEntities(sentence)[1],
-                    "propertyOf",
-                    getEntities(sentence)[0],
-                )
-            )
+        if does_it_imply_propriety(relation):
+            result.append((entities[0], "hasProperty", entities[1]))
+            result.append((entities[1], "propertyOf", entities[0]))
 
             # si tiene propiedad, entonces va a ser clase
-            dataset.append((getEntities(sentence)[0], "typeOf", "Class"))
+            result.append((entities[0], "typeOf", "Class"))
 
-        elif NLP(relation)[0].lemma_ == "ser":  # este es para subclases
-            dataset.append(
-                (
-                    getEntities(sentence)[0],
-                    "subclassOf",
-                    getEntities(sentence)[1],
-                )
-            )
-            dataset.append((getEntities(sentence)[1], "typeOf", "Class"))
+        elif does_it_imply_subclass(relation):  # este es para subclases
+            result.append((entities[0], "subclassOf", entities[1]))
+            result.append((entities[1], "typeOf", "Class"))
 
         else:  # este es para las normales
-            triples = (
-                getEntities(sentence)[0],
-                relation.replace(" ", ""),
-                getEntities(sentence)[1],
-            )
-            dataset.append(triples)
+            triples = (entities[0], relation.replace(" ", ""), entities[1])
+            result.append(triples)
 
+    nodes_with_properties = set(map(lambda triple: triple[0], result))
+    literals = filter(
+        lambda entity: entity not in nodes_with_properties,
+        get_all_entities(sentence_list),
+    )
+    for literal in literals:
+        result.append((literal, "typeOf", "Literal"))
+
+    return result
+
+
+def cosasParaHacerElGrafo(sentence_list):
+    dataset = generate_nodes(sentence_list)
     printGraph(dataset)
+    return dataset
 
 
 # ----------------------
 doc = "Los kayakistas inexpertos son kayakistas. Las travesías en kayak son travesías. La empresa ofrece travesías en kayak. Las travesías en kayak tienen duración. Los kayakistas contratan travesías en kayak. La empresa informa el arancel. Los kayakistas solicitan arancel. La empresa está ubicada en Buenos Aires. Los kayakistas expertos son kayakistas."
 doc = sentences_parser(doc)
 
-dataset = list()
-# buildTriples(doc, dataset)
-cosasParaHacerElGrafo(doc, dataset)
+# buildTriples(doc)
+dataset = cosasParaHacerElGrafo(doc)
 
 print(dataset)
