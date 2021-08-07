@@ -142,9 +142,14 @@ def sentences_parser(paragraph):
     return candidate_sent
 
 
-def printGraph(relations, source, target):
+def printGraph(dataset):
+
+    relation = [triplet[1] for triplet in dataset]
+    source = [triplet[0] for triplet in dataset]
+    target = [triplet[2] for triplet in dataset]
+
     dataset = pd.DataFrame(
-        {"Entidad1": source, "relacion": relations, "Entidad2": target}
+        {"Entidad1": source, "relacion": relation, "Entidad2": target}
     )
 
     plt.figure(figsize=(12, 12))
@@ -158,19 +163,16 @@ def printGraph(relations, source, target):
     pos = nx.spring_layout(G, k=5)
     nx.draw(G, pos, with_labels=True, node_color="pink", node_size=2000)
     labels = {e: G.edges[e]["relacion"] for e in G.edges}
+
     nx.draw_networkx_edge_labels(G, pos, edge_labels=labels)
 
     plt.savefig("data/output.png", bbox_inches="tight")
 
 
 def cosasParaHacerElGrafo(sentenceList, dataset):
-    entities = list()
+    # entities = list()
+    entidades_con_propiedades = list()
 
-    entidadesQueTienenPropiedades = list()
-
-    relations = []
-    source = []
-    target = []
     for sentence in sentenceList:
 
         relation = getRelation(sentence)
@@ -178,8 +180,8 @@ def cosasParaHacerElGrafo(sentenceList, dataset):
             continue
 
         # estos son para el Counter de las entidades
-        entities.append(getEntities(sentence)[0])
-        entities.append(getEntities(sentence)[1])
+        # entities.append(getEntities(sentence)[0])
+        # entities.append(getEntities(sentence)[1])
 
         # este es para setear a mano la relacion de las que son propiedades
         if NLP(relation)[0].lemma_ == "tener":
@@ -198,14 +200,9 @@ def cosasParaHacerElGrafo(sentenceList, dataset):
                 )
             )
 
-            entidadesQueTienenPropiedades.append(getEntities(sentence)[0])
+            entidades_con_propiedades.append(getEntities(sentence)[0])
 
-            source.append(getEntities(sentence)[0])
-            relations.append("hasProperty")
-            target.append(getEntities(sentence)[1])
-
-        # este es para subclases
-        elif NLP(relation)[0].lemma_ == "ser":
+        elif NLP(relation)[0].lemma_ == "ser":  # este es para subclases
             dataset.append(
                 (
                     getEntities(sentence)[0],
@@ -213,21 +210,9 @@ def cosasParaHacerElGrafo(sentenceList, dataset):
                     getEntities(sentence)[1],
                 )
             )
-
-            source.append(getEntities(sentence)[0])
-            relations.append("subclassOf")
-            target.append(getEntities(sentence)[1])
-
-            dataset.append((getEntities(sentence)[1], "typeoOf", "Class"))
-            source.append(getEntities(sentence)[1])
-            relations.append("typeOf")
-            target.append("Class")
+            dataset.append((getEntities(sentence)[1], "typeOf", "Class"))
 
         else:  # este es para las normales
-            source.append(getEntities(sentence)[0])
-            relations.append(relation.replace(" ", ""))
-            target.append(getEntities(sentence)[1])
-
             triples = (
                 getEntities(sentence)[0],
                 relation.replace(" ", ""),
@@ -235,13 +220,13 @@ def cosasParaHacerElGrafo(sentenceList, dataset):
             )
             dataset.append(triples)
 
-        # este es para encontrar literales
-        for token in getEntities(sentence):
-            if NLP(token)[0].ent_type_ != "":
-                dataset.append((token, "typeoOf", "Literal"))
-                source.append(token)
-                relations.append("typeOf")
-                target.append("Literal")
+            # este es para encontrar literales
+            for token in getEntities(sentence):
+                if (
+                    NLP(token)[0].ent_type_ != ""
+                    and token not in entidades_con_propiedades
+                ):
+                    dataset.append((token, "typeoOf", "Literal"))
 
     # estos de abajo son para definir clases
 
@@ -255,18 +240,14 @@ def cosasParaHacerElGrafo(sentenceList, dataset):
     #         target.append("Class")
     #         #------ sacar
 
-    ocurrencesOfEntity = Counter(entidadesQueTienenPropiedades)
-    for i in ocurrencesOfEntity:
+    for i in Counter(entidades_con_propiedades):
         dataset.append((i, "typeoOf", "Class"))
-        source.append(i)
-        relations.append("typeOf")
-        target.append("Class")
 
-    printGraph(relations, source, target)
+    printGraph(dataset)
 
 
 # ----------------------
-doc = "Las travesías en kayak son travesías. La empresa ofrece travesías en kayak. Las travesías en kayak tienen duración. Los kayakistas contratan travesías en kayak. La empresa informa el arancel. Los kayakistas solicitan arancel. La empresa está ubicada en Buenos Aires. Los kayakistas expertos son kayakistas."
+doc = "Los kayakistas inexpertos son tipos de kayakistas. Las travesías en kayak son travesías. La empresa ofrece travesías en kayak. Las travesías en kayak tienen duración. Los kayakistas contratan travesías en kayak. La empresa informa el arancel. Los kayakistas solicitan arancel. La empresa está ubicada en Buenos Aires. Los kayakistas expertos son kayakistas."
 doc = sentences_parser(doc)
 
 dataset = list()

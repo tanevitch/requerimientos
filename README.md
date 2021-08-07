@@ -1,6 +1,6 @@
 # Proyecto-Requerimientos
 
-### Develop
+### Development
 
 #### Install
 
@@ -17,3 +17,8 @@ python -m pip install --upgrade pip
 # Get dependencies
 pip install -Ur requirements.txt
 ```
+
+### TO-DO:
+
+- rdf
+- add the parser
