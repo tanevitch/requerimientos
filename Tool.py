@@ -131,21 +131,14 @@ def printGraph(dataset):
     plt.show() 
 
 def cosasParaHacerElGrafo(sentenceList, dataset):
-    # entities= list()
-    entidadesQueTienenPropiedades= list()
-    
     for sentence in sentenceList:    
-
-        #estos son para el Counter de las entidades
-        # entities.append(getEntities(sentence)[0])
-        # entities.append(getEntities(sentence)[1])
-
         #este es para setear a mano la relacion de las que son propiedades
         if (nlp(getRelation(sentence))[0].lemma_ == "tener"):
             dataset.append((getEntities(sentence)[0], "hasProperty", getEntities(sentence)[1]))
             dataset.append((getEntities(sentence)[1], "propertyOf", getEntities(sentence)[0]))
 
-            entidadesQueTienenPropiedades.append(getEntities(sentence)[0])
+            #si tiene propiedad, entonces va a ser clase
+            dataset.append((getEntities(sentence)[0], "typeOf", "Class"))
 
         elif (nlp(getRelation(sentence))[0].lemma_ == "ser"): # este es para subclases
             dataset.append((getEntities(sentence)[0], "subclassOf", getEntities(sentence)[1]))
@@ -153,13 +146,7 @@ def cosasParaHacerElGrafo(sentenceList, dataset):
 
         else: #este es para las normales
             triples = (getEntities(sentence)[0], getRelation(sentence).replace(" ", ""), getEntities(sentence)[1])
-            dataset.append(triples)
-
-        #este es para encontrar literales
-        for token in getEntities(sentence):
-            if(nlp(token)[0].ent_type_ != "" and nlp(getRelation(sentence))[0].lemma_ != "ser" and token not in entidadesQueTienenPropiedades):
-                print(nlp(token)[0].text)
-                dataset.append((token, "typeoOf", "Literal"))
+            dataset.append(triples)        
 
     # estos de abajo son para definir clases
         
@@ -171,14 +158,11 @@ def cosasParaHacerElGrafo(sentenceList, dataset):
     #         source.append(i)
     #         relations.append("typeOf")
     #         target.append("Class")
-    #         #------ sacar
-
-    for i in Counter(entidadesQueTienenPropiedades):
-        dataset.append((i, "typeoOf", "Class"))
-
+    #         #------ sacar)
+            
     printGraph(dataset)
 #----------------------  
-doc = "Los kayakistas inexpertos son tipos de kayakistas. Las travesías en kayak son travesías. La empresa ofrece travesías en kayak. Las travesías en kayak tienen duración. Los kayakistas contratan travesías en kayak. La empresa informa el arancel. Los kayakistas solicitan arancel. La empresa está ubicada en Buenos Aires. Los kayakistas expertos son kayakistas."
+doc = "Los kayakistas inexpertos son kayakistas. Las travesías en kayak son travesías. La empresa ofrece travesías en kayak. Las travesías en kayak tienen duración. Los kayakistas contratan travesías en kayak. La empresa informa el arancel. Los kayakistas solicitan arancel. La empresa está ubicada en Buenos Aires. Los kayakistas expertos son kayakistas."
 doc= sentences_parser(doc)
 
 dataset= list()
