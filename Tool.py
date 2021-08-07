@@ -113,8 +113,13 @@ def sentences_parser(paragraph):
         candidate_sent.append(nlp(each.lstrip()))
     return candidate_sent
 
-def printGraph(relations, source, target):
-    dataset = pd.DataFrame({'Entidad1': source, 'relacion': relations, 'Entidad2': target})
+def printGraph(dataset):
+
+    relation = [triplet[1] for triplet in dataset]
+    source = [triplet[0] for triplet in dataset]
+    target = [triplet[2] for triplet in dataset]
+
+    dataset = pd.DataFrame({'Entidad1': source, 'relacion': relation, 'Entidad2':target})
 
     plt.figure(figsize=(12,12))
     G = nx.from_pandas_edgelist(df=dataset, source='Entidad1', target='Entidad2', edge_attr='relacion',
@@ -126,18 +131,14 @@ def printGraph(relations, source, target):
     plt.show() 
 
 def cosasParaHacerElGrafo(sentenceList, dataset):
-    entities= list()
-
+    # entities= list()
     entidadesQueTienenPropiedades= list()
-
-    relations = []
-    source = []
-    target = []
+    
     for sentence in sentenceList:    
 
         #estos son para el Counter de las entidades
-        entities.append(getEntities(sentence)[0])
-        entities.append(getEntities(sentence)[1])
+        # entities.append(getEntities(sentence)[0])
+        # entities.append(getEntities(sentence)[1])
 
         #este es para setear a mano la relacion de las que son propiedades
         if (nlp(getRelation(sentence))[0].lemma_ == "tener"):
@@ -146,37 +147,19 @@ def cosasParaHacerElGrafo(sentenceList, dataset):
 
             entidadesQueTienenPropiedades.append(getEntities(sentence)[0])
 
-            source.append(getEntities(sentence)[0])
-            relations.append("hasProperty")
-            target.append(getEntities(sentence)[1])
-
         elif (nlp(getRelation(sentence))[0].lemma_ == "ser"): # este es para subclases
             dataset.append((getEntities(sentence)[0], "subclassOf", getEntities(sentence)[1]))
-
-            source.append(getEntities(sentence)[0])
-            relations.append("subclassOf")
-            target.append(getEntities(sentence)[1])
-
-            dataset.append((getEntities(sentence)[1], "typeoOf", "Class"))
-            source.append(getEntities(sentence)[1])
-            relations.append("typeOf")
-            target.append("Class")
+            dataset.append((getEntities(sentence)[1], "typeOf", "Class"))
 
         else: #este es para las normales
-            source.append(getEntities(sentence)[0])
-            relations.append(getRelation(sentence).replace(" ", ""))
-            target.append(getEntities(sentence)[1])
-
             triples = (getEntities(sentence)[0], getRelation(sentence).replace(" ", ""), getEntities(sentence)[1])
             dataset.append(triples)
 
         #este es para encontrar literales
         for token in getEntities(sentence):
-            if(nlp(token)[0].ent_type_ != ""):
+            if(nlp(token)[0].ent_type_ != "" and nlp(getRelation(sentence))[0].lemma_ != "ser" and token not in entidadesQueTienenPropiedades):
+                print(nlp(token)[0].text)
                 dataset.append((token, "typeoOf", "Literal"))
-                source.append(token)
-                relations.append("typeOf")
-                target.append("Literal")
 
     # estos de abajo son para definir clases
         
@@ -190,16 +173,12 @@ def cosasParaHacerElGrafo(sentenceList, dataset):
     #         target.append("Class")
     #         #------ sacar
 
-    ocurrencesOfEntity= Counter(entidadesQueTienenPropiedades)
-    for i in ocurrencesOfEntity:
+    for i in Counter(entidadesQueTienenPropiedades):
         dataset.append((i, "typeoOf", "Class"))
-        source.append(i)
-        relations.append("typeOf")
-        target.append("Class")
 
-    printGraph(relations, source, target)
+    printGraph(dataset)
 #----------------------  
-doc = "Las travesías en kayak son travesías. La empresa ofrece travesías en kayak. Las travesías en kayak tienen duración. Los kayakistas contratan travesías en kayak. La empresa informa el arancel. Los kayakistas solicitan arancel. La empresa está ubicada en Buenos Aires. Los kayakistas expertos son kayakistas."
+doc = "Los kayakistas inexpertos son tipos de kayakistas. Las travesías en kayak son travesías. La empresa ofrece travesías en kayak. Las travesías en kayak tienen duración. Los kayakistas contratan travesías en kayak. La empresa informa el arancel. Los kayakistas solicitan arancel. La empresa está ubicada en Buenos Aires. Los kayakistas expertos son kayakistas."
 doc= sentences_parser(doc)
 
 dataset= list()
