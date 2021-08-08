@@ -1,9 +1,14 @@
-import matplotlib.pyplot as plt
 from itertools import chain
+
+import matplotlib.pyplot as plt
 import networkx as nx
 import pandas as pd
+from rdflib import Graph, Literal, Namespace
+from rdflib.namespace import OWL, RDF, RDFS, XSD
 import spacy
 from spacy.matcher import Matcher
+
+PREFIX = Namespace("https://example.org/")
 
 NLP = spacy.load("es_core_news_md")
 
@@ -68,34 +73,36 @@ def getObjectsFromSentence(sentence):
 
 
 def getSentenceEnts(sentence):
-    return [ent.text for ent in sentence.ents]
+    return [ent.text.replace(" ", "_") for ent in sentence.ents]
 
 
 def getEntityFromSubject(sentence, pair, pos_verb):
     # sujeto | entidades reconocidas - matcher
     recognizedEntities = getSentenceEnts(sentence[0:pos_verb])
     if len(recognizedEntities) >= 1:  # if there are recognized entities
-        pair.append(recognizedEntities[0])
+        entity = recognizedEntities[0]
     else:
         _, start, end = MATCHER(sentence[0:pos_verb])[-1]
-        pair.append(sentence[start:end].text)  # add the last span
+        entity = sentence[start:end].text  # add the last span
+
+    pair.append(entity.replace(" ", "_"))
 
 
 def getEntityFromPredicate(sentence, pair, pos_verb):
     # predicado | entidades reconocidas - objeto - casos extras
     recognizedEntities = getSentenceEnts(sentence[pos_verb : len(sentence)])
     if len(recognizedEntities) >= 1:
-        pair.append(recognizedEntities[0])
+        entity = recognizedEntities[0]
     elif getObjectsFromSentence(sentence) != "":
-        pair.append(getObjectsFromSentence(sentence))
+        entity = getObjectsFromSentence(sentence)
     else:
-        pair.append(
-            [
-                token.text
-                for token in sentence
-                if token.dep_ == "ROOT" and token.pos_ == "NOUN"
-            ][0]
-        )
+        entity = [
+            token.text
+            for token in sentence
+            if token.dep_ == "ROOT" and token.pos_ == "NOUN"
+        ][0]
+
+    pair.append(entity.replace(" ", "_"))
 
 
 def getEntities(sentence):
@@ -171,44 +178,61 @@ def get_all_entities(sentence_list):
 
 def generate_nodes(sentence_list):
     result = []
+    g = Graph()
+
     for sentence in sentence_list:
 
         relation = getRelation(sentence)
         if relation is None:
             continue
 
-        entities = getEntities(sentence)
+        entities = [
+            entity.replace(" ", "_") for entity in getEntities(sentence)
+        ]
 
         # este es para setear a mano la relacion de las que son propiedades
         if does_it_imply_propriety(relation):
             result.append((entities[0], "hasProperty", entities[1]))
             result.append((entities[1], "propertyOf", entities[0]))
 
+            g.add((PREFIX[entities[1]], RDF.type, OWL.ObjectProperty))
+            g.add((PREFIX[entities[1]], RDFS.domain, PREFIX[entities[0]]))
+
             # si tiene propiedad, entonces va a ser clase
             result.append((entities[0], "typeOf", "Class"))
+            g.add((PREFIX[entities[0]], RDF.type, OWL.Class))
 
         elif does_it_imply_subclass(relation):  # este es para subclases
             result.append((entities[0], "subclassOf", entities[1]))
             result.append((entities[1], "typeOf", "Class"))
 
+            g.add((PREFIX[entities[0]], RDFS.subClassOf, PREFIX[entities[1]]))
+            g.add((PREFIX[entities[1]], RDF.type, OWL.Class))
+
         else:  # este es para las normales
-            triples = (entities[0], relation.replace(" ", ""), entities[1])
-            result.append(triples)
+            relation = relation.replace(" ", "_")
+            result.append((entities[0], relation, entities[1]))
+
+            # TODO: differenciate ObjectProperties and DataProperties
+            # TODO: store literals in rdf
+            g.add((PREFIX[relation], RDF.type, OWL.ObjectProperty))
+            g.add((PREFIX[entities[0]], PREFIX[relation], PREFIX[entities[1]]))
 
     nodes_with_properties = set(map(lambda triple: triple[0], result))
     literals = filter(
-        lambda entity: entity not in nodes_with_properties,
+        lambda entity: entity.replace(" ", "_") not in nodes_with_properties,
         get_all_entities(sentence_list),
     )
     for literal in literals:
         result.append((literal, "typeOf", "Literal"))
 
-    return result
+    return result, g
 
 
 def cosasParaHacerElGrafo(sentence_list):
-    dataset = generate_nodes(sentence_list)
+    dataset, graph = generate_nodes(sentence_list)
     printGraph(dataset)
+    graph.serialize("data/output.ttl", format="turtle", encoding="utf-8")
     return dataset
 
 
