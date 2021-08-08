@@ -1,5 +1,4 @@
 appdirs==1.4.4
-black==21.7b0
 blis==0.7.4
 catalogue==2.0.4
 certifi==2021.5.30
