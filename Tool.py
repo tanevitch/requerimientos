@@ -1,21 +1,17 @@
-import matplotlib.pyplot as plt
 from itertools import chain
+
+import matplotlib.pyplot as plt
 import networkx as nx
 import pandas as pd
+from rdflib import Graph, Namespace
+from rdflib.namespace import OWL, RDF, RDFS
 import spacy
 from spacy.matcher import Matcher
 
-from rdflib import Graph, Literal, Namespace
-from rdflib.namespace import OWL, RDF, RDFS, XSD
-
-NLP = spacy.load("es_core_news_md")
 
 PREFIX = Namespace("https://example.org/")
 
-# ruler = NLP.add_pipe("entity_ruler")
-# ruler.add_patterns([{'label': 'ORG', 'pattern': 'Hoy duermo afuera'}])
-# ruler.add_patterns([{'label': 'ORG', 'pattern': 'travesías en kayak'}])
-
+NLP = spacy.load("es_core_news_md")
 
 MATCHER = Matcher(NLP.vocab)
 
@@ -44,24 +40,7 @@ MATCHER.add(
     ],
 )
 
-# MATCHER.add("xd", [verboSimple])
-# MATCHER.add("xdd", [verboCompuesto])
 
-# ---------------------- NEW VERSION ------------
-sentWithOI = list()
-sentWithoutOI = list()
-
-
-def categorizeSentence(sentence):
-    if len(getObjectsFromSentence(sentence)) == 1:
-        # one object means that it has only do
-        sentWithoutOI.append(sentence)
-    elif len(getObjectsFromSentence(sentence)) == 2:
-        # two objects mean that it has io and do
-        sentWithOI.append(sentence)
-
-
-# ----------- used ----------------
 def getVerbPosition(sentence):
     pos = 0
     for token in sentence:
@@ -102,29 +81,31 @@ def getEntityFromSubject(sentence, pair, pos_verb):
     # sujeto | entidades reconocidas - matcher
     recognizedEntities = getSentenceEnts(sentence[0:pos_verb])
     if len(recognizedEntities) >= 1:  # if there are recognized entities
-        entity= recognizedEntities[0]
+        entity = recognizedEntities[0]
     else:
         _, start, end = MATCHER(sentence[0:pos_verb])[-1]
-        entity=sentence[start:end].text  # add the last span
+        entity = sentence[start:end].text  # add the last span
 
     pair.append(entity.replace(" ", "_"))
+
 
 def getEntityFromPredicate(sentence, pair, pos_verb):
     # predicado | entidades reconocidas - objeto - casos extras
     recognizedEntities = getSentenceEnts(sentence[pos_verb : len(sentence)])
-    
+
     if len(recognizedEntities) >= 1:
-        entity=recognizedEntities[0]
+        entity = recognizedEntities[0]
     elif getObjectsFromSentence(sentence) != "":
-        entity= getObjectsFromSentence(sentence)
+        entity = getObjectsFromSentence(sentence)
     else:
-        entity=[
-                token.text
-                for token in sentence
-                if token.dep_ == "ROOT" and token.pos_ == "NOUN"
-            ][0]
-        
+        entity = [
+            token.text
+            for token in sentence
+            if token.dep_ == "ROOT" and token.pos_ == "NOUN"
+        ][0]
+
     pair.append(entity.replace(" ", "_"))
+
 
 def getEntities(sentence):
     pos_verb = getVerbPosition(sentence)
@@ -200,6 +181,7 @@ def get_all_entities(sentence_list):
 def generate_nodes(sentence_list):
     result = []
     g = Graph()
+
     for sentence in sentence_list:
 
         relation = getRelation(sentence)
@@ -215,6 +197,9 @@ def generate_nodes(sentence_list):
             g.add((PREFIX[entities[1]], RDF.type, OWL.ObjectProperty))
             g.add((PREFIX[entities[1]], RDFS.domain, PREFIX[entities[0]]))
 
+            g.add((PREFIX[entities[1]], RDF.type, OWL.ObjectProperty))
+            g.add((PREFIX[entities[1]], RDFS.domain, PREFIX[entities[0]]))
+
             # si tiene propiedad, entonces va a ser clase
             result.append((entities[0], "typeOf", "Class"))
             g.add((PREFIX[entities[0]], RDF.type, OWL.Class))
@@ -225,10 +210,15 @@ def generate_nodes(sentence_list):
             g.add((PREFIX[entities[0]], RDFS.subClassOf, PREFIX[entities[1]]))
             g.add((PREFIX[entities[1]], RDF.type, OWL.Class))
 
+            g.add((PREFIX[entities[0]], RDFS.subClassOf, PREFIX[entities[1]]))
+            g.add((PREFIX[entities[1]], RDF.type, OWL.Class))
+
         else:  # este es para las normales
-            relation= relation.replace(" ", "")
-            triples = (entities[0], relation, entities[1])
-            result.append(triples)
+            relation = relation.replace(" ", "")
+            result.append((entities[0], relation, entities[1]))
+
+            # TODO: differenciate ObjectProperties and DataProperties
+            # TODO: store literals in rdf
             g.add((PREFIX[relation], RDF.type, OWL.ObjectProperty))
             g.add((PREFIX[entities[0]], PREFIX[relation], PREFIX[entities[1]]))
 
