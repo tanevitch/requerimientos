@@ -19,6 +19,5 @@ pip install -r requirements.txt
 ```
 
 ### TO-DO:
-
-- rdf
+- add te OI?
 - add the parser
