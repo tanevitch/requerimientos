@@ -7,11 +7,6 @@ from spacy.matcher import Matcher
 
 NLP = spacy.load("es_core_news_md")
 
-# ruler = NLP.add_pipe("entity_ruler")
-# ruler.add_patterns([{'label': 'ORG', 'pattern': 'Hoy duermo afuera'}])
-# ruler.add_patterns([{'label': 'ORG', 'pattern': 'travesías en kayak'}])
-
-
 MATCHER = Matcher(NLP.vocab)
 
 MATCHER.add("Nucleo", [[{"DEP": "nsubj"}]])
@@ -39,24 +34,7 @@ MATCHER.add(
     ],
 )
 
-# MATCHER.add("xd", [verboSimple])
-# MATCHER.add("xdd", [verboCompuesto])
 
-# ---------------------- NEW VERSION ------------
-sentWithOI = list()
-sentWithoutOI = list()
-
-
-def categorizeSentence(sentence):
-    if len(getObjectsFromSentence(sentence)) == 1:
-        # one object means that it has only do
-        sentWithoutOI.append(sentence)
-    elif len(getObjectsFromSentence(sentence)) == 2:
-        # two objects mean that it has io and do
-        sentWithOI.append(sentence)
-
-
-# ----------- used ----------------
 def getVerbPosition(sentence):
     pos = 0
     for token in sentence:
