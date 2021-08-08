@@ -1,0 +1,34 @@
+@prefix ns1: <https://example.org/> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+
+ns1:contratan a <http://www.w3.org/2002/07/owl#ObjectProperty> .
+
+ns1:duración a <http://www.w3.org/2002/07/owl#ObjectProperty> ;
+    rdfs:domain ns1:travesías_en_kayak .
+
+ns1:empresa ns1:informa ns1:arancel ;
+    ns1:ofrece ns1:travesías .
+
+ns1:informa a <http://www.w3.org/2002/07/owl#ObjectProperty> .
+
+ns1:kayakistas_expertos rdfs:subClassOf ns1:kayakistas .
+
+ns1:kayakistas_inexpertos rdfs:subClassOf ns1:kayakistas .
+
+ns1:ofrece a <http://www.w3.org/2002/07/owl#ObjectProperty> .
+
+ns1:solicitan a <http://www.w3.org/2002/07/owl#ObjectProperty> .
+
+ns1:ubicadaEn a <http://www.w3.org/2002/07/owl#ObjectProperty> .
+
+ns1:Buenos_Aires ns1:ubicadaEn ns1:Buenos_Aires .
+
+ns1:travesías_en_kayak a <http://www.w3.org/2002/07/owl#Class> ;
+    rdfs:subClassOf ns1:travesías .
+
+ns1:kayakistas a <http://www.w3.org/2002/07/owl#Class> ;
+    ns1:contratan ns1:travesías ;
+    ns1:solicitan ns1:arancel .
+
+ns1:travesías a <http://www.w3.org/2002/07/owl#Class> .
+
