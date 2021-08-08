@@ -240,13 +240,13 @@ def generate_nodes(sentence_list):
     for literal in literals:
         result.append((literal, "typeOf", "Literal"))
 
-    return result
+    return result, g
 
 
 def cosasParaHacerElGrafo(sentence_list):
-    dataset = generate_nodes(sentence_list)
+    dataset, graph = generate_nodes(sentence_list)
     printGraph(dataset)
-    # graph.serialize("data/output.ttl", format="turtle", encoding="utf-8")
+    graph.serialize("data/output.ttl", format="turtle", encoding="utf-8")
     return dataset
 
 

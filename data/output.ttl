@@ -7,7 +7,8 @@ ns1:duración a <http://www.w3.org/2002/07/owl#ObjectProperty> ;
     rdfs:domain ns1:travesías_en_kayak .
 
 ns1:empresa ns1:informa ns1:arancel ;
-    ns1:ofrece ns1:travesías .
+    ns1:ofrece ns1:travesías ;
+    ns1:ubicadaEn ns1:Buenos_Aires .
 
 ns1:informa a <http://www.w3.org/2002/07/owl#ObjectProperty> .
 
@@ -20,8 +21,6 @@ ns1:ofrece a <http://www.w3.org/2002/07/owl#ObjectProperty> .
 ns1:solicitan a <http://www.w3.org/2002/07/owl#ObjectProperty> .
 
 ns1:ubicadaEn a <http://www.w3.org/2002/07/owl#ObjectProperty> .
-
-ns1:Buenos_Aires ns1:ubicadaEn ns1:Buenos_Aires .
 
 ns1:travesías_en_kayak a <http://www.w3.org/2002/07/owl#Class> ;
     rdfs:subClassOf ns1:travesías .
