@@ -19,5 +19,6 @@ pip install -r requirements.txt
 ```
 
 ### TO-DO:
-- add te OI?
+
+- add the indirect object?
 - add the parser
